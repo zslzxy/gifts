@@ -10,12 +10,24 @@ import uvicorn
 import base64
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from threading import Thread, Lock, enumerate
 
 #线程锁
 app = FastAPI()
+
+# 添加CORS中间件
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 msglist = queue.Queue()
 mutex = Lock()
 terminate_flag=False
@@ -896,7 +908,89 @@ def clear_messages():
 
 @app.get("/get_online_member")
 async def get_online_members():
-    return FileResponse("online_member.json")
+    """获取在线用户列表"""
+    if os.path.exists("online_member.json"):
+        return FileResponse("online_member.json")
+    else:
+        return {"code": 0, "message": "在线用户文件不存在，请先扫码登录"}
+
+@app.get("/qrcode")
+def get_qrcode():
+    """获取登录二维码"""
+    try:
+        retoken = getrcode()
+        if retoken:
+            rehttp = f'https://channels.weixin.qq.com/mobile/confirm_login.html?token={retoken}'
+            
+            # 生成二维码
+            qr = qrcode.QRCode(version=1, box_size=10, border=5)
+            qr.add_data(rehttp)
+            qr.make(fit=True)
+            
+            # 创建二维码图片
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            # 保存二维码图片
+            qr_path = "qrcode.png"
+            img.save(qr_path)
+            
+            return {
+                "code": 1,
+                "message": "二维码生成成功",
+                "data": {
+                    "token": retoken,
+                    "qr_url": rehttp,
+                    "qr_image": f"/qrcode_image"
+                }
+            }
+        else:
+            return {"code": 0, "message": "获取二维码失败"}
+    except Exception as e:
+        return {"code": 0, "message": f"生成二维码时出错: {str(e)}"}
+
+@app.get("/qrcode_image")
+def get_qrcode_image():
+    """返回二维码图片文件"""
+    qr_path = "qrcode.png"
+    if os.path.exists(qr_path):
+        return FileResponse(qr_path, media_type="image/png")
+    else:
+        return {"code": 0, "message": "二维码图片不存在"}
+
+@app.get("/login_status/{token}")
+def check_login_status(token: str):
+    """检查登录状态"""
+    try:
+        # 这里可以调用 request_qrcode 函数来检查登录状态
+        # 但为了不阻塞，我们简化处理
+        return {"code": 1, "message": "请扫码登录", "status": "waiting"}
+    except Exception as e:
+        return {"code": 0, "message": f"检查登录状态时出错: {str(e)}"}
+
+@app.get("/")
+def root():
+    """根路径，返回API说明"""
+    return {
+        "message": "腾讯视频直播弹幕获取API",
+        "version": "1.0",
+        "endpoints": {
+            "/qrcode": "获取登录二维码",
+            "/qrcode_image": "获取二维码图片",
+            "/getmsg": "获取弹幕消息",
+            "/clsmsg": "清除所有缓存消息",
+            "/get_online_member": "获取在线用户列表",
+            "/demo": "查看演示页面"
+        }
+    }
+
+@app.get("/demo", response_class=HTMLResponse)
+def demo_page():
+    """返回演示页面"""
+    try:
+        with open("demo.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>演示页面未找到</h1>", status_code=404)
 
 if __name__ == '__main__':
     t1 = Thread(target=getmsg)
@@ -931,7 +1025,7 @@ if __name__ == '__main__':
     
     #启动本地api服务
     print("如需关闭服务，请输入ctrl+C来终止api服务进程，再输入exit退出监听。")
-    uvicorn.run("webapi:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("webapi:app", host="0.0.0.0", port=12000, reload=True)
     
 
 

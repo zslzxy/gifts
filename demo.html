@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>腾讯视频直播弹幕获取API演示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .api-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .api-title {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .qr-image {
+            max-width: 200px;
+            margin: 10px 0;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin: 5px 0;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>腾讯视频直播弹幕获取API演示</h1>
+        
+        <div class="api-section">
+            <div class="api-title">1. 获取API信息</div>
+            <button onclick="getApiInfo()">获取API信息</button>
+            <div id="api-info-result" class="result"></div>
+        </div>
+
+        <div class="api-section">
+            <div class="api-title">2. 生成登录二维码</div>
+            <button onclick="generateQRCode()">生成二维码</button>
+            <div id="qr-result" class="result"></div>
+            <img id="qr-image" class="qr-image" style="display:none;" />
+        </div>
+
+        <div class="api-section">
+            <div class="api-title">3. 获取弹幕消息</div>
+            <button onclick="getMessages()">获取弹幕消息</button>
+            <div id="msg-result" class="result"></div>
+        </div>
+
+        <div class="api-section">
+            <div class="api-title">4. 清除缓存消息</div>
+            <button onclick="clearMessages()">清除缓存消息</button>
+            <div id="clear-result" class="result"></div>
+        </div>
+
+        <div class="api-section">
+            <div class="api-title">5. 获取在线用户</div>
+            <button onclick="getOnlineMembers()">获取在线用户</button>
+            <div id="online-result" class="result"></div>
+        </div>
+
+        <div class="status success">
+            <strong>服务状态:</strong> API服务正在运行在端口 12000
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://work-1-fugdyrbyjprzzigw.prod-runtime.all-hands.dev';
+
+        async function makeRequest(endpoint, elementId) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                const data = await response.json();
+                document.getElementById(elementId).textContent = JSON.stringify(data, null, 2);
+                return data;
+            } catch (error) {
+                document.getElementById(elementId).textContent = `错误: ${error.message}`;
+                return null;
+            }
+        }
+
+        async function getApiInfo() {
+            await makeRequest('/', 'api-info-result');
+        }
+
+        async function generateQRCode() {
+            const data = await makeRequest('/qrcode', 'qr-result');
+            if (data && data.code === 1) {
+                const qrImage = document.getElementById('qr-image');
+                qrImage.src = `${API_BASE}/qrcode_image`;
+                qrImage.style.display = 'block';
+            }
+        }
+
+        async function getMessages() {
+            await makeRequest('/getmsg', 'msg-result');
+        }
+
+        async function clearMessages() {
+            await makeRequest('/clsmsg', 'clear-result');
+        }
+
+        async function getOnlineMembers() {
+            await makeRequest('/get_online_member', 'online-result');
+        }
+
+        // 页面加载时自动获取API信息
+        window.onload = function() {
+            getApiInfo();
+        };
+    </script>
+</body>
+</html>
